@@ -1,0 +1,17 @@
+services:
+  guldan:
+    # image: node:lts
+    # user: node
+    env_file:
+      - ./.env
+    environment:
+      - NODE_ENV=$NODE_ENV
+    # working_dir: /home/node/app
+    build: .
+    init: true
+    tty: true
+    volumes:
+      - ./:/home/node/app
+    ports:
+      - 9222:9222
+    # command: npm install
