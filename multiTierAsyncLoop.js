@@ -58,11 +58,18 @@ async function waitAllTierPromises(tierKey, tierData) {
         const itemsPreemptionThreshold = 100;
         const timePreemptionThreshold = 600000; // 10 minutes
 
-        if (Object.keys(tasks)?.length > 0) {
-            for (const [tierKey, tierData] of Object.entries(tasks)) {
+        let tierNames = Object.keys(tasks)?.length > 0 ? Object.keys(tasks) : [];
+        // if (Object.keys(tasks)?.length > 0) {
+        while (tierNames.length > 0) {
+            // for (const [tierKey, tierData] of Object.entries(tasks)) {
+            for (let tierNamesIndex = 0; tierNamesIndex < tierNames.length; tierNamesIndex++) {
+                const tierKey = tierNames[tierNamesIndex];
+                const tierData = tasks[tierKey];
+                console.log(`tier: ${tierKey} | tierData current: ${tierData.current}`);
                 if (tierData.hasOwnProperty('items') && Array.isArray(tierData.items) && tierData.items.length > 0) {
                     let tierStartTime = new Date();
                     for (let queueId = tierData.current; queueId < tierData.items.length; queueId++) {
+                        tierData.current++;
                         // throttling
                     	while (Object.keys(tierData.notSettledTasksKeys)?.length >= tierData.tasksLimit) {
                     		console.log(`tier: ${tierKey} | waiting for tasks... Current tasks count: ${tierData.concurrentTasksCount} | not settled: ${Object.keys(tierData.notSettledTasksKeys)?.length}`);
@@ -70,18 +77,24 @@ async function waitAllTierPromises(tierKey, tierData) {
                     	}
                         // preemption
                         const tierCurrentTime = new Date();
-                        if ((tierData.current % itemsPreemptionThreshold == 0 && tierData.current > 0) || tierCurrentTime - tierStartTime > timePreemptionThreshold) {
+                        if (((tierData.current % itemsPreemptionThreshold == 0 && tierData.current > 0) || tierCurrentTime - tierStartTime > timePreemptionThreshold) && tierNames.length > 1) {
                             console.log(`Preempting tier: ${tierKey} | tier progress: ${tierData.current} | tier current duration: ${tierCurrentTime - tierStartTime}`);
                             await waitAllTierPromises(tierKey, tierData);
                             break;
                         }
-                        tierData.current++;
                         const task = tierData.items[queueId];
                         task.queueId = queueId;
                         task.promise = asyncTask(task, tasks[tierKey]);
                     }
-                }
+
+                    if (tierData.current >= tierData.items.length) {
+                        console.log(`Deleting tasks key: ${tierKey}`);
+                        delete tasks[tierKey];
+                    }
+                } 
             }
+            tierNames = Object.keys(tasks);
+            console.log(tierNames);
         }
 
 		// const tasksLimit = 80;
